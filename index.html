@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Satranç</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- chess.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/cjs/chess.min.js"></script>
+
+  <!-- chessboard.js daha kolaydır -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+</head>
+
+<body class="bg-zinc-950 text-white min-h-screen p-4">
+  <div class="max-w-5xl mx-auto">
+    <h1 class="text-3xl font-bold mb-4">Satranç</h1>
+
+    <div class="grid md:grid-cols-[1fr_320px] gap-4">
+      <div class="bg-zinc-900 p-3 rounded-2xl">
+        <div id="board" class="w-full max-w-[520px] mx-auto"></div>
+      </div>
+
+      <div class="bg-zinc-900 p-4 rounded-2xl">
+        <h2 class="text-xl font-semibold mb-2">Oyun Durumu</h2>
+        <p id="status" class="text-zinc-300 mb-4">Beyaz oynar</p>
+
+        <button onclick="newGame()" class="w-full bg-white text-black rounded-xl py-2 font-semibold mb-3">
+          Yeni Oyun
+        </button>
+
+        <h3 class="font-semibold mb-2">Hamleler</h3>
+        <div id="moves" class="text-sm text-zinc-300 max-h-64 overflow-auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const game = new Chess();
+
+    const board = Chessboard('board', {
+      draggable: true,
+      position: 'start',
+      onDrop: handleMove
+    });
+
+    function handleMove(source, target) {
+      const move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q'
+      });
+
+      if (move === null) return 'snapback';
+
+      updateStatus();
+    }
+
+    function updateStatus() {
+      board.position(game.fen());
+
+      let status = game.turn() === 'w' ? 'Beyaz oynar' : 'Siyah oynar';
+
+      if (game.isCheckmate()) {
+        status = 'Şah mat! Oyun bitti.';
+      } else if (game.isDraw()) {
+        status = 'Berabere.';
+      } else if (game.isCheck()) {
+        status += ' — Şah!';
+      }
+
+      document.getElementById('status').innerText = status;
+
+      const history = game.history();
+      document.getElementById('moves').innerHTML = history
+        .map((m, i) => `${i + 1}. ${m}`)
+        .join('<br>');
+    }
+
+    function newGame() {
+      game.reset();
+      board.start();
+      updateStatus();
+    }
+
+    updateStatus();
+  </script>
+</body>
+</html>
