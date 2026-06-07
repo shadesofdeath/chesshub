@@ -1,25 +1,54 @@
 <!doctype html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Static Chess</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Minimal Chess</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
 
 <style>
-  .piece {
-    font-size: clamp(30px, 8vw, 58px);
-    line-height: 1;
-    transform: translateY(-2px);
+  :root {
+    --bg: #0f1117;
+    --card: #171a23;
+    --panel: #10131a;
+    --text: #ffffff;
+    --muted: #9ca3af;
+    --light-square: #e7d7bd;
+    --dark-square: #7a9461;
+    --accent: #facc15;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .card {
+    background: var(--card);
+  }
+
+  .panel {
+    background: var(--panel);
+  }
+
+  .muted {
+    color: var(--muted);
   }
 
   .square {
     aspect-ratio: 1 / 1;
     position: relative;
     touch-action: manipulation;
+  }
+
+  .piece {
+    font-size: clamp(30px, 8vw, 56px);
+    line-height: 1;
+    transform: translateY(-2px);
+    user-select: none;
   }
 
   .hint::after {
@@ -39,62 +68,177 @@
     border-radius: 999px;
     position: absolute;
   }
+
+  .selected {
+    box-shadow: inset 0 0 0 4px var(--accent);
+  }
+
+  .lastmove {
+    box-shadow: inset 0 0 0 999px rgba(250, 204, 21, .22);
+  }
+
+  .shake {
+    animation: shake .16s linear;
+  }
+
+  @keyframes shake {
+    0% { transform: translateX(0); }
+    35% { transform: translateX(-5px); }
+    70% { transform: translateX(5px); }
+    100% { transform: translateX(0); }
+  }
 </style>
 </head>
 
-<body class="min-h-screen bg-[#0f1117] text-white p-3">
-<main class="max-w-6xl mx-auto">
-  <header class="flex items-center justify-between mb-4">
+<body class="min-h-screen p-3">
+<main class="max-w-7xl mx-auto">
+
+  <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
     <div>
-      <h1 class="text-2xl font-bold">Minimal Chess</h1>
-      <p class="text-zinc-400 text-sm">Mobil uyumlu statik satranç</p>
+      <h1 class="text-2xl sm:text-3xl font-black tracking-tight">Minimal Chess</h1>
+      <p class="muted text-sm">Tek dosya statik GitHub Pages satranç sitesi</p>
     </div>
 
-    <button onclick="newGame()" class="bg-white text-black px-4 py-2 rounded-xl font-bold">
-      Yeni Oyun
-    </button>
+    <div class="grid grid-cols-2 sm:flex gap-2">
+      <button onclick="newGame()" class="bg-white text-black px-4 py-2 rounded-xl font-bold">Yeni Oyun</button>
+      <button onclick="undoMove()" class="card border border-white/10 px-4 py-2 rounded-xl font-semibold">Geri Al</button>
+    </div>
   </header>
 
-  <section class="grid lg:grid-cols-[1fr_330px] gap-4">
-    <div class="bg-[#171a23] rounded-3xl p-3">
-      <div id="board" class="grid grid-cols-8 w-full max-w-[560px] mx-auto rounded-2xl overflow-hidden shadow-2xl"></div>
+  <section class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+    <div class="card rounded-2xl p-3">
+      <p class="muted text-xs">Mod</p>
+      <b id="topMode">2 Kişi</b>
     </div>
 
-    <aside class="bg-[#171a23] rounded-3xl p-5">
-      <p class="text-zinc-400 text-sm">Durum</p>
-      <h2 id="status" class="text-xl font-bold mb-5">Beyaz oynar</h2>
+    <div class="card rounded-2xl p-3">
+      <p class="muted text-xs">Sıra</p>
+      <b id="topTurn">Beyaz</b>
+    </div>
 
-      <div class="grid grid-cols-3 gap-2 mb-5">
-        <button onclick="setTheme('dark')" class="bg-zinc-800 rounded-xl py-2 text-sm">Dark</button>
-        <button onclick="setTheme('light')" class="bg-zinc-800 rounded-xl py-2 text-sm">Light</button>
-        <button onclick="setTheme('retro')" class="bg-zinc-800 rounded-xl py-2 text-sm">Retro</button>
+    <div class="card rounded-2xl p-3">
+      <p class="muted text-xs">Hamle</p>
+      <b id="topMoveCount">0</b>
+    </div>
+
+    <div class="card rounded-2xl p-3">
+      <p class="muted text-xs">Durum</p>
+      <b id="topStatus">Hazır</b>
+    </div>
+
+    <div class="card rounded-2xl p-3 col-span-2 md:col-span-1">
+      <p class="muted text-xs">Son Hamle</p>
+      <b id="topLastMove">-</b>
+    </div>
+  </section>
+
+  <section class="grid lg:grid-cols-[1fr_360px] gap-4 items-start">
+
+    <div class="space-y-3">
+      <div id="blackCard" class="card rounded-3xl p-4 flex items-center justify-between border border-white/10">
+        <div>
+          <p class="muted text-sm">Siyah</p>
+          <h2 id="blackName" class="text-lg font-bold">Oyuncu 2</h2>
+        </div>
+        <div id="blackCaptured" class="text-xl tracking-tight opacity-80"></div>
       </div>
 
-      <p class="text-zinc-400 text-sm mb-2">Hamle Geçmişi</p>
-      <div id="moves" class="bg-[#10131a] rounded-2xl p-3 h-72 overflow-auto text-sm text-zinc-300 mb-4"></div>
+      <div id="boardWrap" class="card rounded-3xl p-3">
+        <div id="board" class="grid grid-cols-8 w-full max-w-[620px] mx-auto rounded-2xl overflow-hidden shadow-2xl"></div>
+      </div>
 
-      <button onclick="undoMove()" class="w-full border border-zinc-700 rounded-xl py-2">
-        Geri Al
-      </button>
+      <div id="whiteCard" class="card rounded-3xl p-4 flex items-center justify-between border border-white/10">
+        <div>
+          <p class="muted text-sm">Beyaz</p>
+          <h2 id="whiteName" class="text-lg font-bold">Oyuncu 1</h2>
+        </div>
+        <div id="whiteCaptured" class="text-xl tracking-tight opacity-80"></div>
+      </div>
+    </div>
+
+    <aside class="card rounded-3xl p-5 space-y-5">
+      <div>
+        <p class="muted text-sm">Oyun Durumu</p>
+        <h2 id="status" class="text-2xl font-black">Beyaz oynar</h2>
+        <p id="message" class="muted text-sm mt-1">Taşa dokun, gidebileceği kareleri gör.</p>
+      </div>
+
+      <div>
+        <p class="muted text-sm mb-2">Oyun Modu</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="setMode('human')" id="modeHuman" class="panel rounded-xl py-2 font-semibold">2 Kişi</button>
+          <button onclick="setMode('computer')" id="modeComputer" class="panel rounded-xl py-2 font-semibold">Bilgisayar</button>
+        </div>
+      </div>
+
+      <div>
+        <p class="muted text-sm mb-2">Zorluk</p>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="setDifficulty('easy')" id="diffEasy" class="panel rounded-xl py-2 text-sm font-semibold">Kolay</button>
+          <button onclick="setDifficulty('medium')" id="diffMedium" class="panel rounded-xl py-2 text-sm font-semibold">Orta</button>
+          <button onclick="setDifficulty('hard')" id="diffHard" class="panel rounded-xl py-2 text-sm font-semibold">Zor</button>
+        </div>
+      </div>
+
+      <div>
+        <p class="muted text-sm mb-2">Tema</p>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="setTheme('dark')" class="panel rounded-xl py-2 text-sm">Dark</button>
+          <button onclick="setTheme('light')" class="panel rounded-xl py-2 text-sm">Light</button>
+          <button onclick="setTheme('retro')" class="panel rounded-xl py-2 text-sm">Retro</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="toggleSound()" id="soundBtn" class="panel rounded-xl py-2 font-semibold">Ses: Açık</button>
+        <button onclick="clearSave()" class="panel rounded-xl py-2 font-semibold">Kaydı Sil</button>
+      </div>
+
+      <div>
+        <p class="muted text-sm mb-2">Hamle Geçmişi</p>
+        <div id="moves" class="panel rounded-2xl p-3 h-64 overflow-auto text-sm"></div>
+      </div>
     </aside>
+
   </section>
 </main>
 
 <script>
 const game = new Chess();
+
 let selected = null;
 let legalTargets = [];
+let lastMoveSquares = [];
+let gameMode = "human";
+let difficulty = "medium";
+let soundEnabled = true;
+let botThinking = false;
 
 const boardEl = document.getElementById("board");
+const boardWrap = document.getElementById("boardWrap");
 
 const pieces = {
   p:"♟", r:"♜", n:"♞", b:"♝", q:"♛", k:"♚",
   P:"♙", R:"♖", N:"♘", B:"♗", Q:"♕", K:"♔"
 };
 
+const pieceValue = {
+  p: 100,
+  n: 320,
+  b: 330,
+  r: 500,
+  q: 900,
+  k: 20000
+};
+
 const moveSound = new Howl({
   src: ["https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"],
-  volume: 0.35
+  volume: 0.3
+});
+
+const captureSound = new Howl({
+  src: ["https://assets.mixkit.co/active_storage/sfx/1432/1432-preview.mp3"],
+  volume: 0.3
 });
 
 const endSound = new Howl({
@@ -115,12 +259,15 @@ function drawBoard() {
       const isSelected = selected === square;
       const isLegal = legalTargets.includes(square);
       const isCapture = isLegal && piece;
+      const isLastMove = lastMoveSquares.includes(square);
 
       const cell = document.createElement("button");
+
       cell.className =
-        "square flex items-center justify-center select-none " +
-        (isLight ? "bg-[#e7d7bd]" : "bg-[#7a9461]") +
-        (isSelected ? " ring-4 ring-yellow-400 z-10 " : " ") +
+        "square flex items-center justify-center transition " +
+        (isLight ? "bg-[var(--light-square)]" : "bg-[var(--dark-square)]") +
+        (isSelected ? " selected " : "") +
+        (isLastMove ? " lastmove " : "") +
         (isLegal && !isCapture ? " hint " : "") +
         (isCapture ? " capture " : "");
 
@@ -129,7 +276,11 @@ function drawBoard() {
       if (piece) {
         const key = piece.color === "w" ? piece.type.toUpperCase() : piece.type;
         const span = document.createElement("span");
-        span.className = "piece " + (piece.color === "w" ? "text-white drop-shadow-[0_2px_2px_rgba(0,0,0,.8)]" : "text-black");
+        span.className = "piece " + (
+          piece.color === "w"
+            ? "text-white drop-shadow-[0_2px_2px_rgba(0,0,0,.85)]"
+            : "text-black drop-shadow-[0_1px_1px_rgba(255,255,255,.25)]"
+        );
         span.textContent = pieces[key];
         cell.appendChild(span);
       }
@@ -138,11 +289,13 @@ function drawBoard() {
     }
   }
 
-  updateStatus();
+  updateUI();
 }
 
 function handleSquare(square) {
-  if (game.game_over()) return;
+  if (game.game_over() || botThinking) return;
+
+  if (gameMode === "computer" && game.turn() === "b") return;
 
   const clickedPiece = game.get(square);
 
@@ -177,82 +330,386 @@ function handleSquare(square) {
       return;
     }
 
-    flashError();
+    showInvalid("Geçersiz hamle");
     selected = null;
     legalTargets = [];
     drawBoard();
     return;
   }
 
+  afterMove(move);
+
+  if (gameMode === "computer" && game.turn() === "b" && !game.game_over()) {
+    makeComputerMove();
+  }
+}
+
+function afterMove(move) {
   selected = null;
   legalTargets = [];
+  lastMoveSquares = [move.from, move.to];
 
-  localStorage.setItem("static-chess-fen", game.fen());
-  moveSound.play();
-
-  if (game.game_over()) endSound.play();
-
+  playMoveSound(move);
+  saveGame();
   drawBoard();
+
+  if (game.game_over()) playSound(endSound);
 }
 
-function updateStatus() {
-  let status = game.turn() === "w" ? "Beyaz oynar" : "Siyah oynar";
+function updateUI() {
+  const turnText = game.turn() === "w" ? "Beyaz" : "Siyah";
+  const history = game.history();
+  const lastMove = history.length ? history[history.length - 1] : "-";
 
-  if (game.in_checkmate()) status = "Şah mat! Oyun bitti.";
-  else if (game.in_stalemate()) status = "Pat! Oyun berabere.";
-  else if (game.in_draw()) status = "Berabere.";
-  else if (game.in_check()) status += " — Şah!";
+  let status = turnText + " oynar";
+  let detail = "Taşa dokun, gidebileceği kareleri gör.";
+
+  if (game.in_checkmate()) {
+    status = "Şah mat!";
+    detail = game.turn() === "w" ? "Siyah kazandı." : "Beyaz kazandı.";
+  } else if (game.in_stalemate()) {
+    status = "Pat!";
+    detail = "Oyun berabere.";
+  } else if (game.in_threefold_repetition()) {
+    status = "Tekrar beraberliği";
+    detail = "Aynı pozisyon üç kez oluştu.";
+  } else if (game.insufficient_material()) {
+    status = "Yetersiz materyal";
+    detail = "Mat için yeterli taş yok.";
+  } else if (game.in_draw()) {
+    status = "Berabere";
+    detail = "Beraberlik durumu oluştu.";
+  } else if (game.in_check()) {
+    status = turnText + " şah altında!";
+    detail = "Şah tehdidini kaldırmalısın.";
+  }
 
   document.getElementById("status").textContent = status;
+  document.getElementById("message").textContent = detail;
 
-  document.getElementById("moves").innerHTML = game.history()
-    .map((m, i) => {
-      const no = Math.floor(i / 2) + 1;
-      return i % 2 === 0
-        ? `<div class="grid grid-cols-[40px_1fr] border-b border-zinc-800 py-1"><b>${no}.</b><span>${m}</span></div>`
-        : `<div class="grid grid-cols-[40px_1fr] border-b border-zinc-800 py-1"><span></span><span>${m}</span></div>`;
-    })
-    .join("");
+  document.getElementById("topMode").textContent = gameMode === "human" ? "2 Kişi" : "Bilgisayar";
+  document.getElementById("topTurn").textContent = turnText;
+  document.getElementById("topMoveCount").textContent = Math.floor(history.length / 2);
+  document.getElementById("topStatus").textContent = status;
+  document.getElementById("topLastMove").textContent = lastMove;
+
+  document.getElementById("blackName").textContent = gameMode === "computer" ? "Bilgisayar" : "Oyuncu 2";
+  document.getElementById("whiteName").textContent = gameMode === "computer" ? "Sen" : "Oyuncu 1";
+
+  document.getElementById("whiteCard").className =
+    "card rounded-3xl p-4 flex items-center justify-between border " +
+    (game.turn() === "w" ? "border-yellow-400 shadow-lg shadow-yellow-400/10" : "border-white/10");
+
+  document.getElementById("blackCard").className =
+    "card rounded-3xl p-4 flex items-center justify-between border " +
+    (game.turn() === "b" ? "border-yellow-400 shadow-lg shadow-yellow-400/10" : "border-white/10");
+
+  document.getElementById("modeHuman").className =
+    "rounded-xl py-2 font-semibold " + (gameMode === "human" ? "bg-yellow-400 text-black" : "panel");
+
+  document.getElementById("modeComputer").className =
+    "rounded-xl py-2 font-semibold " + (gameMode === "computer" ? "bg-yellow-400 text-black" : "panel");
+
+  ["easy", "medium", "hard"].forEach(d => {
+    const id = d === "easy" ? "diffEasy" : d === "medium" ? "diffMedium" : "diffHard";
+    document.getElementById(id).className =
+      "rounded-xl py-2 text-sm font-semibold " + (difficulty === d ? "bg-yellow-400 text-black" : "panel");
+  });
+
+  document.getElementById("soundBtn").textContent = soundEnabled ? "Ses: Açık" : "Ses: Kapalı";
+
+  renderHistory();
+  renderCaptured();
 }
 
-function flashError() {
-  document.body.classList.add("bg-red-950");
-  setTimeout(() => document.body.classList.remove("bg-red-950"), 150);
+function renderHistory() {
+  const history = game.history();
+  const movesEl = document.getElementById("moves");
+
+  if (!history.length) {
+    movesEl.innerHTML = `<p class="muted">Henüz hamle yok.</p>`;
+    return;
+  }
+
+  movesEl.innerHTML = history.map((m, i) => {
+    const no = Math.floor(i / 2) + 1;
+
+    if (i % 2 === 0) {
+      return `
+        <div class="grid grid-cols-[42px_1fr_1fr] gap-2 border-b border-white/10 py-1">
+          <b>${no}.</b>
+          <span>${m}</span>
+          <span></span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="grid grid-cols-[42px_1fr_1fr] gap-2 border-b border-white/10 py-1 -mt-[29px]">
+        <span></span>
+        <span></span>
+        <span>${m}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderCaptured() {
+  const board = game.board().flat().filter(Boolean);
+  const start = { p:8, n:2, b:2, r:2, q:1 };
+
+  const currentWhite = { p:0, n:0, b:0, r:0, q:0 };
+  const currentBlack = { p:0, n:0, b:0, r:0, q:0 };
+
+  board.forEach(p => {
+    if (p.type === "k") return;
+    if (p.color === "w") currentWhite[p.type]++;
+    else currentBlack[p.type]++;
+  });
+
+  const whiteLost = [];
+  const blackLost = [];
+
+  Object.keys(start).forEach(type => {
+    for (let i = 0; i < start[type] - currentWhite[type]; i++) whiteLost.push(type);
+    for (let i = 0; i < start[type] - currentBlack[type]; i++) blackLost.push(type);
+  });
+
+  document.getElementById("blackCaptured").textContent = whiteLost.map(t => pieces[t.toUpperCase()]).join("");
+  document.getElementById("whiteCaptured").textContent = blackLost.map(t => pieces[t]).join("");
+}
+
+function makeComputerMove() {
+  botThinking = true;
+  document.getElementById("message").textContent = "Bilgisayar düşünüyor...";
+
+  setTimeout(() => {
+    const move = chooseComputerMove();
+    if (move) {
+      const played = game.move(move);
+      afterMove(played);
+    }
+    botThinking = false;
+  }, 450);
+}
+
+function chooseComputerMove() {
+  const moves = game.moves({ verbose: true });
+  if (!moves.length) return null;
+
+  if (difficulty === "easy") {
+    return randomItem(moves);
+  }
+
+  if (difficulty === "medium") {
+    const goodMoves = moves.filter(m => m.captured || givesCheck(m));
+    return goodMoves.length ? randomItem(goodMoves) : randomItem(moves);
+  }
+
+  let bestScore = -Infinity;
+  let bestMoves = [];
+
+  moves.forEach(move => {
+    const score = evaluateMove(move);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMoves = [move];
+    } else if (score === bestScore) {
+      bestMoves.push(move);
+    }
+  });
+
+  return randomItem(bestMoves);
+}
+
+function evaluateMove(move) {
+  let score = 0;
+
+  if (move.captured) {
+    score += pieceValue[move.captured] || 0;
+  }
+
+  if (move.promotion) {
+    score += pieceValue[move.promotion] || 800;
+  }
+
+  game.move(move);
+
+  if (game.in_checkmate()) score += 100000;
+  else if (game.in_check()) score += 80;
+
+  const replies = game.moves({ verbose: true });
+
+  replies.forEach(reply => {
+    if (reply.captured) {
+      score -= (pieceValue[reply.captured] || 0) * 0.35;
+    }
+  });
+
+  score += evaluateMaterial("b") * 0.03;
+  score -= evaluateMaterial("w") * 0.03;
+
+  game.undo();
+
+  score += Math.random() * 8;
+  return score;
+}
+
+function evaluateMaterial(color) {
+  return game.board().flat().filter(Boolean)
+    .filter(p => p.color === color)
+    .reduce((sum, p) => sum + (pieceValue[p.type] || 0), 0);
+}
+
+function givesCheck(move) {
+  game.move(move);
+  const result = game.in_check();
+  game.undo();
+  return result;
 }
 
 function newGame() {
   game.reset();
   selected = null;
   legalTargets = [];
-  localStorage.removeItem("static-chess-fen");
+  lastMoveSquares = [];
+  botThinking = false;
+  saveGame();
   drawBoard();
 }
 
 function undoMove() {
+  if (botThinking) return;
+
   game.undo();
+
+  if (gameMode === "computer" && game.turn() === "b") {
+    game.undo();
+  }
+
   selected = null;
   legalTargets = [];
-  localStorage.setItem("static-chess-fen", game.fen());
+  lastMoveSquares = [];
+  saveGame();
   drawBoard();
+}
+
+function setMode(mode) {
+  gameMode = mode;
+  newGame();
+}
+
+function setDifficulty(level) {
+  difficulty = level;
+  saveGame();
+  updateUI();
 }
 
 function setTheme(theme) {
   if (theme === "light") {
-    document.body.className = "min-h-screen bg-zinc-100 text-zinc-950 p-3";
+    document.documentElement.style.setProperty("--bg", "#f4f4f5");
+    document.documentElement.style.setProperty("--card", "#ffffff");
+    document.documentElement.style.setProperty("--panel", "#e4e4e7");
+    document.documentElement.style.setProperty("--text", "#111827");
+    document.documentElement.style.setProperty("--muted", "#6b7280");
+    document.documentElement.style.setProperty("--light-square", "#f0d9b5");
+    document.documentElement.style.setProperty("--dark-square", "#b58863");
   } else if (theme === "retro") {
-    document.body.className = "min-h-screen bg-[#24170f] text-[#f6dfb8] p-3";
+    document.documentElement.style.setProperty("--bg", "#21170f");
+    document.documentElement.style.setProperty("--card", "#302015");
+    document.documentElement.style.setProperty("--panel", "#1a120c");
+    document.documentElement.style.setProperty("--text", "#f6dfb8");
+    document.documentElement.style.setProperty("--muted", "#c5a984");
+    document.documentElement.style.setProperty("--light-square", "#d9b98f");
+    document.documentElement.style.setProperty("--dark-square", "#73513a");
   } else {
-    document.body.className = "min-h-screen bg-[#0f1117] text-white p-3";
+    document.documentElement.style.setProperty("--bg", "#0f1117");
+    document.documentElement.style.setProperty("--card", "#171a23");
+    document.documentElement.style.setProperty("--panel", "#10131a");
+    document.documentElement.style.setProperty("--text", "#ffffff");
+    document.documentElement.style.setProperty("--muted", "#9ca3af");
+    document.documentElement.style.setProperty("--light-square", "#e7d7bd");
+    document.documentElement.style.setProperty("--dark-square", "#7a9461");
   }
 
   localStorage.setItem("static-chess-theme", theme);
 }
 
-const savedFen = localStorage.getItem("static-chess-fen");
-if (savedFen) game.load(savedFen);
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  saveGame();
+  updateUI();
+}
 
-setTheme(localStorage.getItem("static-chess-theme") || "dark");
+function saveGame() {
+  const data = {
+    fen: game.fen(),
+    mode: gameMode,
+    difficulty,
+    soundEnabled,
+    lastMoveSquares
+  };
+
+  localStorage.setItem("static-chess-save", JSON.stringify(data));
+}
+
+function loadGame() {
+  const theme = localStorage.getItem("static-chess-theme") || "dark";
+  setTheme(theme);
+
+  try {
+    const raw = localStorage.getItem("static-chess-save");
+    if (!raw) return;
+
+    const data = JSON.parse(raw);
+
+    if (data.fen) game.load(data.fen);
+    if (data.mode) gameMode = data.mode;
+    if (data.difficulty) difficulty = data.difficulty;
+    if (typeof data.soundEnabled === "boolean") soundEnabled = data.soundEnabled;
+    if (Array.isArray(data.lastMoveSquares)) lastMoveSquares = data.lastMoveSquares;
+  } catch {
+    localStorage.removeItem("static-chess-save");
+  }
+}
+
+function clearSave() {
+  localStorage.removeItem("static-chess-save");
+  newGame();
+}
+
+function playMoveSound(move) {
+  if (!soundEnabled) return;
+  if (move.captured) playSound(captureSound);
+  else playSound(moveSound);
+}
+
+function playSound(sound) {
+  if (soundEnabled) sound.play();
+}
+
+function showInvalid(text) {
+  document.getElementById("message").textContent = text;
+  boardWrap.classList.add("shake");
+  document.body.style.background = "#450a0a";
+
+  setTimeout(() => {
+    boardWrap.classList.remove("shake");
+    document.body.style.background = "var(--bg)";
+  }, 180);
+}
+
+function randomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+loadGame();
 drawBoard();
+
+if (gameMode === "computer" && game.turn() === "b" && !game.game_over()) {
+  makeComputerMove();
+}
 </script>
 </body>
 </html>
