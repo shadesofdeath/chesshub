@@ -1,184 +1,258 @@
 <!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Minimal Chess</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Static Chess</title>
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
 
-  <style>
-    chess-board {
-      width: min(92vw, 560px);
-      height: min(92vw, 560px);
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 25px 80px rgba(0,0,0,.45);
-    }
-  </style>
+<style>
+  .piece {
+    font-size: clamp(30px, 8vw, 58px);
+    line-height: 1;
+    transform: translateY(-2px);
+  }
+
+  .square {
+    aspect-ratio: 1 / 1;
+    position: relative;
+    touch-action: manipulation;
+  }
+
+  .hint::after {
+    content: "";
+    width: 28%;
+    height: 28%;
+    border-radius: 999px;
+    background: rgba(20, 20, 20, .35);
+    position: absolute;
+  }
+
+  .capture::after {
+    content: "";
+    width: 78%;
+    height: 78%;
+    border: 4px solid rgba(20, 20, 20, .35);
+    border-radius: 999px;
+    position: absolute;
+  }
+</style>
 </head>
 
-<body class="min-h-screen bg-[#0f1117] text-white">
-  <main class="max-w-6xl mx-auto p-4">
-    <header class="flex items-center justify-between mb-5">
-      <div>
-        <h1 class="text-2xl font-bold">Minimal Chess</h1>
-        <p class="text-zinc-400 text-sm">Statik GitHub Pages satranç sitesi</p>
+<body class="min-h-screen bg-[#0f1117] text-white p-3">
+<main class="max-w-6xl mx-auto">
+  <header class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-2xl font-bold">Minimal Chess</h1>
+      <p class="text-zinc-400 text-sm">Mobil uyumlu statik satranç</p>
+    </div>
+
+    <button onclick="newGame()" class="bg-white text-black px-4 py-2 rounded-xl font-bold">
+      Yeni Oyun
+    </button>
+  </header>
+
+  <section class="grid lg:grid-cols-[1fr_330px] gap-4">
+    <div class="bg-[#171a23] rounded-3xl p-3">
+      <div id="board" class="grid grid-cols-8 w-full max-w-[560px] mx-auto rounded-2xl overflow-hidden shadow-2xl"></div>
+    </div>
+
+    <aside class="bg-[#171a23] rounded-3xl p-5">
+      <p class="text-zinc-400 text-sm">Durum</p>
+      <h2 id="status" class="text-xl font-bold mb-5">Beyaz oynar</h2>
+
+      <div class="grid grid-cols-3 gap-2 mb-5">
+        <button onclick="setTheme('dark')" class="bg-zinc-800 rounded-xl py-2 text-sm">Dark</button>
+        <button onclick="setTheme('light')" class="bg-zinc-800 rounded-xl py-2 text-sm">Light</button>
+        <button onclick="setTheme('retro')" class="bg-zinc-800 rounded-xl py-2 text-sm">Retro</button>
       </div>
 
-      <button onclick="newGame()" class="bg-white text-black px-4 py-2 rounded-xl font-semibold">
-        Yeni Oyun
+      <p class="text-zinc-400 text-sm mb-2">Hamle Geçmişi</p>
+      <div id="moves" class="bg-[#10131a] rounded-2xl p-3 h-72 overflow-auto text-sm text-zinc-300 mb-4"></div>
+
+      <button onclick="undoMove()" class="w-full border border-zinc-700 rounded-xl py-2">
+        Geri Al
       </button>
-    </header>
+    </aside>
+  </section>
+</main>
 
-    <section class="grid lg:grid-cols-[1fr_340px] gap-5 items-start">
-      <div class="bg-[#171a23] rounded-3xl p-3 flex justify-center">
-        <chess-board id="board" draggable-pieces position="start"></chess-board>
-      </div>
+<script>
+const game = new Chess();
+let selected = null;
+let legalTargets = [];
 
-      <aside class="bg-[#171a23] rounded-3xl p-5">
-        <div class="mb-5">
-          <p class="text-zinc-400 text-sm">Durum</p>
-          <h2 id="status" class="text-xl font-bold">Beyaz oynar</h2>
-        </div>
+const boardEl = document.getElementById("board");
 
-        <div class="grid grid-cols-3 gap-2 mb-5">
-          <button onclick="setTheme('dark')" class="bg-zinc-800 rounded-xl py-2 text-sm">Dark</button>
-          <button onclick="setTheme('light')" class="bg-zinc-800 rounded-xl py-2 text-sm">Light</button>
-          <button onclick="setTheme('retro')" class="bg-zinc-800 rounded-xl py-2 text-sm">Retro</button>
-        </div>
+const pieces = {
+  p:"♟", r:"♜", n:"♞", b:"♝", q:"♛", k:"♚",
+  P:"♙", R:"♖", N:"♘", B:"♗", Q:"♕", K:"♔"
+};
 
-        <div class="mb-5">
-          <p class="text-zinc-400 text-sm mb-2">Hamle Geçmişi</p>
-          <div id="moves" class="bg-[#10131a] rounded-2xl p-3 h-72 overflow-auto text-sm text-zinc-300"></div>
-        </div>
+const moveSound = new Howl({
+  src: ["https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"],
+  volume: 0.35
+});
 
-        <button onclick="undoMove()" class="w-full border border-zinc-700 rounded-xl py-2">
-          Geri Al
-        </button>
-      </aside>
-    </section>
-  </main>
+const endSound = new Howl({
+  src: ["https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"],
+  volume: 0.35
+});
 
-  <script type="module">
-    import "https://unpkg.com/chessboard-element?module";
+function drawBoard() {
+  boardEl.innerHTML = "";
 
-    const game = new Chess();
-    const board = document.getElementById("board");
+  for (let rank = 8; rank >= 1; rank--) {
+    for (let fileIndex = 0; fileIndex < 8; fileIndex++) {
+      const file = "abcdefgh"[fileIndex];
+      const square = file + rank;
+      const piece = game.get(square);
 
-    const moveSound = new Howl({
-      src: ["https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"],
-      volume: 0.35
-    });
+      const isLight = (fileIndex + rank) % 2 === 0;
+      const isSelected = selected === square;
+      const isLegal = legalTargets.includes(square);
+      const isCapture = isLegal && piece;
 
-    const endSound = new Howl({
-      src: ["https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"],
-      volume: 0.35
-    });
+      const cell = document.createElement("button");
+      cell.className =
+        "square flex items-center justify-center select-none " +
+        (isLight ? "bg-[#e7d7bd]" : "bg-[#7a9461]") +
+        (isSelected ? " ring-4 ring-yellow-400 z-10 " : " ") +
+        (isLegal && !isCapture ? " hint " : "") +
+        (isCapture ? " capture " : "");
 
-    const savedFen = localStorage.getItem("static-chess-fen");
-    if (savedFen) {
-      game.load(savedFen);
-      board.position = game.fen();
+      cell.onclick = () => handleSquare(square);
+
+      if (piece) {
+        const key = piece.color === "w" ? piece.type.toUpperCase() : piece.type;
+        const span = document.createElement("span");
+        span.className = "piece " + (piece.color === "w" ? "text-white drop-shadow-[0_2px_2px_rgba(0,0,0,.8)]" : "text-black");
+        span.textContent = pieces[key];
+        cell.appendChild(span);
+      }
+
+      boardEl.appendChild(cell);
+    }
+  }
+
+  updateStatus();
+}
+
+function handleSquare(square) {
+  if (game.game_over()) return;
+
+  const clickedPiece = game.get(square);
+
+  if (!selected) {
+    if (!clickedPiece) return;
+    if (clickedPiece.color !== game.turn()) return;
+
+    selected = square;
+    legalTargets = game.moves({ square, verbose: true }).map(m => m.to);
+    drawBoard();
+    return;
+  }
+
+  if (selected === square) {
+    selected = null;
+    legalTargets = [];
+    drawBoard();
+    return;
+  }
+
+  const move = game.move({
+    from: selected,
+    to: square,
+    promotion: "q"
+  });
+
+  if (!move) {
+    if (clickedPiece && clickedPiece.color === game.turn()) {
+      selected = square;
+      legalTargets = game.moves({ square, verbose: true }).map(m => m.to);
+      drawBoard();
+      return;
     }
 
-    board.addEventListener("drag-start", (e) => {
-      const piece = e.detail.piece;
-      if (game.game_over()) {
-        e.preventDefault();
-        return;
-      }
+    flashError();
+    selected = null;
+    legalTargets = [];
+    drawBoard();
+    return;
+  }
 
-      if (
-        (game.turn() === "w" && piece.startsWith("b")) ||
-        (game.turn() === "b" && piece.startsWith("w"))
-      ) {
-        e.preventDefault();
-      }
-    });
+  selected = null;
+  legalTargets = [];
 
-    board.addEventListener("drop", (e) => {
-      const source = e.detail.source;
-      const target = e.detail.target;
+  localStorage.setItem("static-chess-fen", game.fen());
+  moveSound.play();
 
-      const move = game.move({
-        from: source,
-        to: target,
-        promotion: "q"
-      });
+  if (game.game_over()) endSound.play();
 
-      if (move === null) {
-        board.position = game.fen();
-        flashError();
-        return;
-      }
+  drawBoard();
+}
 
-      board.position = game.fen();
-      localStorage.setItem("static-chess-fen", game.fen());
+function updateStatus() {
+  let status = game.turn() === "w" ? "Beyaz oynar" : "Siyah oynar";
 
-      moveSound.play();
-      updateStatus();
+  if (game.in_checkmate()) status = "Şah mat! Oyun bitti.";
+  else if (game.in_stalemate()) status = "Pat! Oyun berabere.";
+  else if (game.in_draw()) status = "Berabere.";
+  else if (game.in_check()) status += " — Şah!";
 
-      if (game.game_over()) endSound.play();
-    });
+  document.getElementById("status").textContent = status;
 
-    function updateStatus() {
-      let status = game.turn() === "w" ? "Beyaz oynar" : "Siyah oynar";
+  document.getElementById("moves").innerHTML = game.history()
+    .map((m, i) => {
+      const no = Math.floor(i / 2) + 1;
+      return i % 2 === 0
+        ? `<div class="grid grid-cols-[40px_1fr] border-b border-zinc-800 py-1"><b>${no}.</b><span>${m}</span></div>`
+        : `<div class="grid grid-cols-[40px_1fr] border-b border-zinc-800 py-1"><span></span><span>${m}</span></div>`;
+    })
+    .join("");
+}
 
-      if (game.in_checkmate()) status = "Şah mat! Oyun bitti.";
-      else if (game.in_stalemate()) status = "Pat! Oyun berabere.";
-      else if (game.in_draw()) status = "Berabere.";
-      else if (game.in_check()) status += " — Şah!";
+function flashError() {
+  document.body.classList.add("bg-red-950");
+  setTimeout(() => document.body.classList.remove("bg-red-950"), 150);
+}
 
-      document.getElementById("status").textContent = status;
+function newGame() {
+  game.reset();
+  selected = null;
+  legalTargets = [];
+  localStorage.removeItem("static-chess-fen");
+  drawBoard();
+}
 
-      const history = game.history();
-      document.getElementById("moves").innerHTML = history
-        .map((m, i) => {
-          const moveNo = Math.floor(i / 2) + 1;
-          return i % 2 === 0
-            ? `<div class="grid grid-cols-[38px_1fr] gap-2 py-1 border-b border-zinc-800"><b>${moveNo}.</b><span>${m}</span></div>`
-            : `<div class="grid grid-cols-[38px_1fr] gap-2 py-1 border-b border-zinc-800"><span></span><span>${m}</span></div>`;
-        })
-        .join("");
-    }
+function undoMove() {
+  game.undo();
+  selected = null;
+  legalTargets = [];
+  localStorage.setItem("static-chess-fen", game.fen());
+  drawBoard();
+}
 
-    function flashError() {
-      document.body.classList.add("bg-red-950");
-      setTimeout(() => document.body.classList.remove("bg-red-950"), 180);
-    }
+function setTheme(theme) {
+  if (theme === "light") {
+    document.body.className = "min-h-screen bg-zinc-100 text-zinc-950 p-3";
+  } else if (theme === "retro") {
+    document.body.className = "min-h-screen bg-[#24170f] text-[#f6dfb8] p-3";
+  } else {
+    document.body.className = "min-h-screen bg-[#0f1117] text-white p-3";
+  }
 
-    window.newGame = function () {
-      game.reset();
-      board.position = "start";
-      localStorage.removeItem("static-chess-fen");
-      updateStatus();
-    };
+  localStorage.setItem("static-chess-theme", theme);
+}
 
-    window.undoMove = function () {
-      game.undo();
-      board.position = game.fen();
-      localStorage.setItem("static-chess-fen", game.fen());
-      updateStatus();
-    };
+const savedFen = localStorage.getItem("static-chess-fen");
+if (savedFen) game.load(savedFen);
 
-    window.setTheme = function (theme) {
-      if (theme === "light") {
-        document.body.className = "min-h-screen bg-zinc-100 text-zinc-950";
-      } else if (theme === "retro") {
-        document.body.className = "min-h-screen bg-[#21170f] text-[#f5deb3]";
-      } else {
-        document.body.className = "min-h-screen bg-[#0f1117] text-white";
-      }
-
-      localStorage.setItem("static-chess-theme", theme);
-    };
-
-    const theme = localStorage.getItem("static-chess-theme") || "dark";
-    setTheme(theme);
-    updateStatus();
-  </script>
+setTheme(localStorage.getItem("static-chess-theme") || "dark");
+drawBoard();
+</script>
 </body>
 </html>
